@@ -161,9 +161,49 @@ class Field(object):
                     value = u'    '.join(value)
             else:
                 value = u''.join(value)
-            serialized = u'%(name)s: %(value)s' % locals()
+            serialized = u'    %(name)s: %(value)s' % locals()
         else:
-            serialized = u'%(name)s:' % locals()
+            serialized = u'    %(name)s:' % locals()
+        return serialized
+
+    def files_serialize(self):
+        """
+        Return a unicode serialization of self which is under 'files' in the ABOUT format.
+        """
+        # No need to check for has_content or value as this is a requrie filed
+        # and will always has content and value
+        name = u'- ' + self.name
+        value = self.serialized_value() or u''
+        serialized = u'        %(name)s: %(value)s' % locals()
+        return serialized
+
+    def licenses_packages_parties_serialize(self):
+        """
+        Return a unicode serialization of self which is under 'licenses', 'packages'
+        and 'parties' in the ABOUT format.
+        """
+        name = self.name
+        value = self.serialized_value() or u''
+        if self.has_content or self.value:
+            value = value.splitlines(True)
+            # multi-line
+            if len(value) > 1:
+                # This code is used to read the YAML's multi-line format in
+                # ABOUT files
+                # (Test: test_loads_dumps_is_idempotent)
+                if value[0].strip() == u'|' or value[0].strip() == u'>':
+                    value = u' '.join(value)
+                else:
+                    # Insert '|' as the indicator for multi-line follow by a
+                    # newline character
+                    value.insert(0, u'|\n')
+                    # insert 4 spaces for newline values
+                    value = u'    '.join(value)
+            else:
+                value = u''.join(value)
+            serialized = u'          %(name)s: %(value)s' % locals()
+        else:
+            serialized = u'          %(name)s:' % locals()
         return serialized
 
     def serialized_value(self):
@@ -956,9 +996,60 @@ class About(object):
         If with_absent, include absent (not present) fields.
         If with_empty, include empty fields.
         """
-        serialized = []
+        serialized = [u'component:']
+        as_files = [u'about_resource']
+        as_license = [u'license', u'license_name', u'license_file', u'license_url']
+        as_package = [u'download_url', u'vcs_tool', u'vcs_repository', u'vcs_path',
+                      u'vcs_tag', u'vcs_branch', u'vcs_revision']
+        as_parties = [u'owner', u'owner_url', u'contact', u'author']
+
+        files = []
+        licenses = []
+        parties = []
+        packages = []
+        normal_fields = []
+
         for field in self.all_fields(with_absent, with_empty):
+            if field.name in as_files:
+                files.append(field)
+            elif field.name in as_license:
+                licenses.append(field)
+            elif field.name in as_package:
+                packages.append(field)
+            elif field.name in as_parties:
+                parties.append(field)
+            else:
+                normal_fields.append(field)
+
+        # Format the output to ABC Data format
+        for field in normal_fields:
             serialized.append(field.serialize())
+
+        if files:
+            serialized.append(u'\n' + u'    files:')
+            for field in sorted(files):
+                serialized.append(field.files_serialize())
+        # FIXME: Need to implement license expression and have multi-license support that way
+        # Support single license ONLY for now.
+        # One solution:
+        # We can provide a dictionary with the license_key as the key, and others
+        # such as license_name, license_file etc as a list of the value for multi-license support
+        if licenses:
+            serialized.append(u'\n' + u'    licenses:')
+            serialized.append(u'        -')
+            for field in sorted(licenses):
+                serialized.append(field.licenses_packages_parties_serialize())
+        if packages:
+            serialized.append(u'\n' + u'    packages:')
+            serialized.append(u'        -')
+            for field in sorted(packages):
+                serialized.append(field.licenses_packages_parties_serialize())
+        if parties:
+            serialized.append(u'\n' + u'    parties:')
+            serialized.append(u'        -')
+            for field in sorted(parties):
+                serialized.append(field.licenses_packages_parties_serialize())
+
         # always end with a new line
         return u'\n'.join(serialized) + u'\n'
 
