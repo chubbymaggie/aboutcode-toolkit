@@ -201,9 +201,9 @@ class Field(object):
                     value = u'    '.join(value)
             else:
                 value = u''.join(value)
-            serialized = u'          %(name)s: %(value)s' % locals()
+            serialized = u'        %(name)s: %(value)s' % locals()
         else:
-            serialized = u'          %(name)s:' % locals()
+            serialized = u'        %(name)s:' % locals()
         return serialized
 
     def serialized_value(self):
@@ -1038,15 +1038,13 @@ class About(object):
             serialized.append(u'\n' + u'    licenses:')
             serialized.append(u'        -')
             for field in sorted(licenses):
-                serialized.append(field.licenses_packages_parties_serialize())
+                serialized.append(u'  '+ field.licenses_packages_parties_serialize())
         if packages:
             serialized.append(u'\n' + u'    packages:')
-            serialized.append(u'        -')
             for field in sorted(packages):
                 serialized.append(field.licenses_packages_parties_serialize())
         if parties:
             serialized.append(u'\n' + u'    parties:')
-            serialized.append(u'        -')
             for field in sorted(parties):
                 serialized.append(field.licenses_packages_parties_serialize())
 
